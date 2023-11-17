@@ -1,0 +1,10 @@
+LICENSE
+README.md
+setup.py
+anthroscore/__init__.py
+anthroscore/get_anthroscore.py
+anthroscore.egg-info/PKG-INFO
+anthroscore.egg-info/SOURCES.txt
+anthroscore.egg-info/dependency_links.txt
+anthroscore.egg-info/requires.txt
+anthroscore.egg-info/top_level.txt

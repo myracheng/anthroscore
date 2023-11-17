@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: anthroscore
+Version: 0.0.0
+Home-page: https://github.com/myracheng/anthroscore
+Author: Myra Cheng
+Author-email: myra@cs.stanford.edu
+License: BSD 2-clause
+Classifier: Programming Language :: Python :: 3.11
+License-File: LICENSE
