@@ -1,22 +1,28 @@
 """
 This script computes AnthroScore for a set of entities in a set of texts. It 
-results in an output file with all parsed sentences from the texts and their 
-corresponding AnthroScores.
+results in (1) an output file with AnthroScore for each text, and (2) an 
+output file containing all sentences from the texts with AnthroScores.
 
 EXAMPLE USAGE: 
 To obtain AnthroScores for the terms "model" and "system" in 
-abstracts from examples/acl_50.csv (a subset of ACL Anthology papers)
+abstracts from examples/acl_50.csv (a subset of ACL Anthology papers):
 
     python get_anthroscore.py --input_file example/acl_50.csv \
         --text_column_name abstract --entities system model \
-        --output_file example/results.csv --text_id_name acl_id
 
-You can also list the entities in a separate .txt file, 
+Optionally, you can specify the output file locations, and also the 
+identifier for each text
+
+    python get_anthroscore.py --input_file example/acl_50.csv \
+        --text_column_name abstract --entities system model \
+        --output_sentence_file example/result_sentences.csv \
+            --output_file example/results.csv --text_id_name acl_id
+
+You can also list the entities in a separate .txt file instead, 
 specified by the argument --entity_filename
 
     python get_anthroscore.py --input_file example/acl_50.csv \
-            --text_column_name abstract --entity_filename example/entities.txt \
-            --output_file example/results.csv --text_id_name acl_id
+            --text_column_name abstract --entity_filename example/entities.txt
 
 """
 
@@ -87,11 +93,13 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
     df = pd.read_csv(input_filename).dropna(subset=text_column_name)
     final = []
     for i, k in df.iterrows():
+        if i%1000==0:
+            print("Parsing text %d, %d sentences found"%(i,len(final)))
         text = k[text_column_name]
         if len(id_column_name)>0:
             text_id = k[id_column_name]
         else:
-            text_id = input_filename
+            text_id = i
         if text.strip():
             doc = nlp(text)
             for _parsed_sentence in doc.sents:
@@ -115,18 +123,24 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--entities",nargs="+", type=str,help="Entities to compute AnthroScore for")
     group.add_argument('--entity_filename',default='',help=".txt file of entities to compute AnthroScore for")
-    parser.add_argument("--output_file", default='',help="Location to store output of parsed sentences with AnthroScores, optional")
-    parser.add_argument("--text_id_name",type=str,default='',help="ID metadata to save for every sentence parsed, optional")
+    parser.add_argument("--output_file", default='',help="Location to store output of AnthroScores for every text, optional")
+    parser.add_argument("--output_sentence_file", default='',help="Location to store output of parsed sentences with AnthroScores, optional")
+    parser.add_argument("--text_id_name",type=str,default='',help="ID for each text, optional -- otherwise defaults to the index in the dataframe")
     
         
     args = parser.parse_args()
 
     input_file = args.input_file
     output_file = args.output_file
-    if output_file is None:
-        output_file = '%s_parsed.csv'%(input_file.split('.')[0])
+    if len(output_file) == 0:
+        output_file = '%s_anthroscores.csv'%(input_file.split('.')[0])
     assert input_file[-4:]=='.csv'
     assert output_file[-4:]=='.csv'
+
+    output_sentence_file = args.output_sentence_file
+
+    if len(output_sentence_file) == 0:
+        output_sentence_file = '%s_sentences.csv'%(input_file.split('.')[0])
         
     text_column_name = args.text_column_name
     if len(args.entity_filename)>0:
@@ -137,20 +151,41 @@ def main():
         
     text_id_name = args.text_id_name
 
-    parse_sentences_from_file(input_file,entities,text_column_name, text_id_name, output_file)
+    parse_sentences_from_file(input_file,entities,text_column_name, text_id_name, output_sentence_file)
     
-    bertscores = get_anthroscore(output_file)
+    bertscores = get_anthroscore(output_sentence_file)
 
-    df = pd.read_csv(output_file)
+    df = pd.read_csv(output_sentence_file)
 
     human_scores = np.sum(bertscores[1:,:15],axis=1)
     nonhuman_scores = np.sum(bertscores[1:,15:],axis=1)
     df['anthroscore'] = np.log(human_scores) - np.log(nonhuman_scores)
 
-    df.to_csv(output_file)
+    df.to_csv(output_sentence_file)
+
+    original_df = pd.read_csv(input_file)
+    final = []
+    sentence_df = pd.read_csv(output_sentence_file)
+
+    for i, k in original_df.iterrows():
+        if len(text_id_name)>0:
+            relevant_sents = sentence_df.loc[sentence_df.text_id==k[text_id_name]]
+        else:
+            relevant_sents = sentence_df.loc[sentence_df.text_id==i] #maybe str?
+
+        if len(relevant_sents) > 0:
+            final.append(np.mean(relevant_sents.anthroscore))
+        else:
+            final.append(float('nan'))
+
+    original_df['anthroscore'] = final
+    original_df.to_csv(output_file)
+
 
     print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
-    print('AnthroScores for each sentence saved in %s'%(output_file))
+    print('AnthroScores for each sentence saved in %s'%(output_sentence_file))
+    print('AnthroScores for text sentence saved in %s'%(output_file))
+
 
 if __name__ == '__main__':
     main()
