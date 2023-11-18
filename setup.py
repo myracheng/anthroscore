@@ -16,9 +16,9 @@ setup(
                       'spacy==3.4.4',
                       'numpy',
                       'scipy',
-                      'transformers==4.25.1',
+                      'transformers',
                       'pandas',
-                      'torch==2.0.1',
+                      'torch',
                       'en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.4.1/en_core_web_sm-3.4.1-py3-none-any.whl'
                       ],
 
