@@ -90,7 +90,11 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
     column_names = ['sentence','masked_sentence','text_id','POS','verb','original_term','original_noun']
     pattern_list = ['\\b%s\\b'%s for s in entities] # add boundaries
 
-    df = pd.read_csv(input_filename).dropna(subset=text_column_name)
+    if input_filename.endswith('csv'):
+        df = pd.read_csv(input_filename).dropna(subset=text_column_name)
+    else:
+        df = pd.read_json(input_filename).dropna(subset=text_column_name)
+
     final = []
     for i, k in df.iterrows():
         if i%1000==0:
@@ -118,7 +122,7 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
 def main():
     parser = argparse.ArgumentParser(description="Script to compute AnthroScore for a given set of texts",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input_file", help="Input CSV file of text(s) to compute AnthroScore on")
+    parser.add_argument("--input_file", help="Input CSV or JSON file of text(s) to compute AnthroScore on")
     parser.add_argument("--text_column_name", help="Column of input CSV containing text(s) to compute AnthroScore on.")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--entities",nargs="+", type=str,help="Entities to compute AnthroScore for")
@@ -134,7 +138,7 @@ def main():
     output_file = args.output_file
     if len(output_file) == 0:
         output_file = '%s_anthroscores.csv'%(input_file.split('.')[0])
-    assert input_file[-4:]=='.csv'
+    assert ((input_file[-4:]=='.csv') or (input_file[-5:]=='.json'))
     assert output_file[-4:]=='.csv'
 
     output_sentence_file = args.output_sentence_file
@@ -163,7 +167,11 @@ def main():
 
     df.to_csv(output_sentence_file)
 
-    original_df = pd.read_csv(input_file)
+    if input_file.endswith('csv'):
+        original_df = pd.read_csv(input_file)
+    else:
+        original_df = pd.read_json(input_file)
+        
     final = []
     sentence_df = pd.read_csv(output_sentence_file)
 
