@@ -4,6 +4,13 @@ results in (1) an output file with AnthroScore for each text, and (2) an
 output file containing all sentences from the texts with AnthroScores.
 
 EXAMPLE USAGE: 
+To obtain AnthroScore for the terms "model" and "system" in the text 
+    "I love this model. I hate this system.":
+
+    python get_anthroscore.py --input_text "I love this model. I hate this system." \
+        --entities system model \
+        --output_sentence_file sentence_scores.csv
+
 To obtain AnthroScores for the terms "model" and "system" in 
 abstracts from examples/acl_50.csv (a subset of ACL Anthology papers):
 
@@ -101,8 +108,8 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
 
     final = []
     for i, k in df.iterrows():
-        if i%1000==0:
-            print("Parsing text %d, %d sentences found"%(i,len(final)))
+        if i>0 and i%1000==0:
+            print("Parsing text #%d, %d sentences found"%(i,len(final)))
         text = k[text_column_name]
         if len(id_column_name)>0:
             text_id = k[id_column_name]
@@ -123,6 +130,45 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
     res.to_csv(output_filename,index=False)
     print('%d sentences containing target entities found'%len(res))
 
+def get_text_score(text,entities,output_filename=''):
+    # Mask sentences
+    pattern_list = ['\\b%s\\b'%s for s in entities] # add boundaries
+    masked_sents = []
+    if text.strip():
+        doc = nlp(text)
+        for _parsed_sentence in doc.sents:
+            for _noun_chunk in _parsed_sentence.noun_chunks:
+                if _noun_chunk.root.dep_ == 'nsubj' or _noun_chunk.root.dep_ == 'dobj':
+                    for _pattern in pattern_list:
+                        if re.findall(_pattern.lower(), _noun_chunk.text.lower()):
+                                _verb = _noun_chunk.root.head.lemma_.lower()
+                                target = str(_parsed_sentence).replace(str(_noun_chunk),'<mask>')
+                                masked_sents.append(target)
+
+    print('%d sentences containing target entities found'%len(masked_sents))
+    if len(masked_sents)==0:
+        print("Stopping calculation, no words found.")
+        return np.nan
+        
+    # Get scores
+    terms = ['you', 'we', 'us', 'he', 'she', 'her', 'him', 'You', 'We', 'Us', 'He', 'She', 'Her', 'I','i', 'it', 'its', 'It', 'Its' ]
+    final =np.empty((len(terms),))
+    for i,x in enumerate(masked_sents):
+        if i>0 and i%100 == 0:
+            torch.cuda.empty_cache()
+            gc.collect()
+            print("Calculating sentence %d"%i)
+        newrow = get_prediction(x)
+        final = np.vstack([final, newrow])
+    human_scores = np.sum(final[1:,:15],axis=1)
+    nonhuman_scores = np.sum(final[1:,15:],axis=1)
+    final_scores = np.log(human_scores) - np.log(nonhuman_scores)
+    df = pd.DataFrame({'sentence':masked_sents,'anthroscore':final_scores})
+    if len(output_filename)>0:
+        df.to_csv(output_filename)
+        print("Scores for individual sentences saved to %s"%output_filename)
+    return np.mean(final_scores)
+
 
 
 def compute_average_scores(input_file,output_sentence_file,output_file,text_id_name):
@@ -138,7 +184,7 @@ def compute_average_scores(input_file,output_sentence_file,output_file,text_id_n
         if len(text_id_name)>0:
             relevant_sents = sentence_df.loc[sentence_df.text_id==k[text_id_name]]
         else:
-            relevant_sents = sentence_df.loc[sentence_df.text_id==i] #maybe str?
+            relevant_sents = sentence_df.loc[sentence_df.text_id==i]
 
         if len(relevant_sents) > 0:
             final.append(np.mean(relevant_sents.anthroscore))
@@ -151,11 +197,14 @@ def compute_average_scores(input_file,output_sentence_file,output_file,text_id_n
 def main():
     parser = argparse.ArgumentParser(description="Script to compute AnthroScore for a given set of texts",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input_file", help="Input CSV or JSON file of text(s) to compute AnthroScore on")
+    group1 = parser.add_mutually_exclusive_group()
+    group1.add_argument("--input_text", help='Input text to compute AnthroScore on')
+    group1.add_argument("--input_file", help="Input CSV or JSON file of text(s) to compute AnthroScore on")
     parser.add_argument("--text_column_name", help="Column of input CSV containing text(s) to compute AnthroScore on.")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--entities",nargs="+", type=str,help="Entities to compute AnthroScore for")
-    group.add_argument('--entity_filename',default='',help=".txt file of entities to compute AnthroScore for")
+
+    group2= parser.add_mutually_exclusive_group()
+    group2.add_argument("--entities",nargs="+", type=str,help="Entities to compute AnthroScore for")
+    group2.add_argument('--entity_filename',default='',help=".txt file of entities to compute AnthroScore for")
     parser.add_argument("--output_file", default='',help="Location to store output of AnthroScores for every text, optional")
     parser.add_argument("--output_sentence_file", default='',help="Location to store output of parsed sentences with AnthroScores, optional")
     parser.add_argument("--text_id_name",type=str,default='',help="ID for each text, optional -- otherwise defaults to the index in the dataframe")
@@ -163,38 +212,46 @@ def main():
         
     args = parser.parse_args()
 
-    input_file = args.input_file
-    output_file = args.output_file
-    if len(output_file) == 0:
-        output_file = '%s_anthroscores.csv'%(input_file.split('.')[0])
-    assert ((input_file[-4:]=='.csv') or (input_file[-5:]=='.json'))
-    assert output_file[-4:]=='.csv'
-
-    output_sentence_file = args.output_sentence_file
-
-    if len(output_sentence_file) == 0:
-        output_sentence_file = '%s_sentences.csv'%(input_file.split('.')[0])
-        
-    text_column_name = args.text_column_name
-    assert text_column_name is not None
-
     if len(args.entity_filename)>0:
         with open(args.entity_filename) as f:
             entities = [line.rstrip('\n') for line in f]
     else:
         entities = args.entities
+
+
+
+    if len(args.input_text) > 0:
+        score = get_text_score(args.input_text, entities, args.output_sentence_file)
+
+        print('Average AnthroScore in text: %.3f'%(score))
+    else:
+        input_file = args.input_file
+        output_file = args.output_file
+        if len(output_file) == 0:
+            output_file = '%s_anthroscores.csv'%(input_file.split('.')[0])
+        assert ((input_file[-4:]=='.csv') or (input_file[-5:]=='.json'))
+        assert output_file[-4:]=='.csv'
+
+        output_sentence_file = args.output_sentence_file
+
+        if len(output_sentence_file) == 0:
+            output_sentence_file = '%s_sentence_scores.csv'%(input_file.split('.')[0])
         
-    text_id_name = args.text_id_name
+        text_column_name = args.text_column_name
+        assert text_column_name is not None
 
-    parse_sentences_from_file(input_file,entities,text_column_name, text_id_name, output_sentence_file)
-    
-    get_anthroscores(output_sentence_file)
+            
+        text_id_name = args.text_id_name
 
-    compute_average_scores(input_file,output_sentence_file,output_file,text_id_name)
+        parse_sentences_from_file(input_file,entities,text_column_name, text_id_name, output_sentence_file)
+        
+        get_anthroscores(output_sentence_file)
 
-    #print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
-    print('AnthroScores for each sentence saved in %s'%(output_sentence_file))
-    print('AnthroScores for text sentence saved in %s'%(output_file))
+        compute_average_scores(input_file,output_sentence_file,output_file,text_id_name)
+
+        #print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
+        print('AnthroScores for each sentence saved in %s'%(output_sentence_file))
+        print('AnthroScores for text sentence saved in %s'%(output_file))
 
 
 if __name__ == '__main__':
