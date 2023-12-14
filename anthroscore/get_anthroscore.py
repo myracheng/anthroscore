@@ -73,7 +73,7 @@ def get_prediction(sent):
     scores = np.array([probs[i] for i in target_inds])
     return scores
 
-def get_anthroscore(sentence_filename):
+def get_anthroscores(sentence_filename):
     terms = ['you', 'we', 'us', 'he', 'she', 'her', 'him', 'You', 'We', 'Us', 'He', 'She', 'Her', 'I','i', 'it', 'its', 'It', 'Its' ]
     df = pd.read_csv(sentence_filename)
     final =np.empty((len(terms),))
@@ -84,7 +84,11 @@ def get_anthroscore(sentence_filename):
             print("Calculating sentence %d"%i)
         newrow = get_prediction(x)
         final = np.vstack([final, newrow])
-    return final
+    
+    human_scores = np.sum(final[1:,:15],axis=1)
+    nonhuman_scores = np.sum(final[1:,15:],axis=1)
+    df['anthroscore'] = np.log(human_scores) - np.log(nonhuman_scores)
+    df.to_csv(sentence_filename)
 
 def parse_sentences_from_file(input_filename, entities, text_column_name, id_column_name, output_filename):
     column_names = ['sentence','masked_sentence','text_id','POS','verb','original_term','original_noun']
@@ -110,7 +114,7 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
                 for _noun_chunk in _parsed_sentence.noun_chunks:
                     if _noun_chunk.root.dep_ == 'nsubj' or _noun_chunk.root.dep_ == 'dobj':
                         for _pattern in pattern_list:
-                            if re.findall(_pattern, _noun_chunk.text.lower()):
+                            if re.findall(_pattern.lower(), _noun_chunk.text.lower()):
                                     _verb = _noun_chunk.root.head.lemma_.lower()
                                     target = str(_parsed_sentence).replace(str(_noun_chunk),'<mask>')
                                     final.append((str(_parsed_sentence), target, text_id, _noun_chunk.root.dep,str(_verb),_pattern.strip('\\b'),_noun_chunk.text.lower()))
@@ -118,6 +122,31 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
     res.columns =column_names
     res.to_csv(output_filename,index=False)
     print('%d sentences containing target entities found'%len(res))
+
+
+
+def compute_average_scores(input_file,output_sentence_file,output_file,text_id_name):
+    if input_file.endswith('csv'):
+        original_df = pd.read_csv(input_file)
+    else:
+        original_df = pd.read_json(input_file)
+        
+    final = []
+    sentence_df = pd.read_csv(output_sentence_file)
+
+    for i, k in original_df.iterrows():
+        if len(text_id_name)>0:
+            relevant_sents = sentence_df.loc[sentence_df.text_id==k[text_id_name]]
+        else:
+            relevant_sents = sentence_df.loc[sentence_df.text_id==i] #maybe str?
+
+        if len(relevant_sents) > 0:
+            final.append(np.mean(relevant_sents.anthroscore))
+        else:
+            final.append(float('nan'))
+
+    original_df['anthroscore'] = final
+    original_df.to_csv(output_file)
 
 def main():
     parser = argparse.ArgumentParser(description="Script to compute AnthroScore for a given set of texts",
@@ -147,6 +176,8 @@ def main():
         output_sentence_file = '%s_sentences.csv'%(input_file.split('.')[0])
         
     text_column_name = args.text_column_name
+    assert text_column_name is not None
+
     if len(args.entity_filename)>0:
         with open(args.entity_filename) as f:
             entities = [line.rstrip('\n') for line in f]
@@ -157,40 +188,11 @@ def main():
 
     parse_sentences_from_file(input_file,entities,text_column_name, text_id_name, output_sentence_file)
     
-    bertscores = get_anthroscore(output_sentence_file)
+    get_anthroscores(output_sentence_file)
 
-    df = pd.read_csv(output_sentence_file)
+    compute_average_scores(input_file,output_sentence_file,output_file,text_id_name)
 
-    human_scores = np.sum(bertscores[1:,:15],axis=1)
-    nonhuman_scores = np.sum(bertscores[1:,15:],axis=1)
-    df['anthroscore'] = np.log(human_scores) - np.log(nonhuman_scores)
-
-    df.to_csv(output_sentence_file)
-
-    if input_file.endswith('csv'):
-        original_df = pd.read_csv(input_file)
-    else:
-        original_df = pd.read_json(input_file)
-        
-    final = []
-    sentence_df = pd.read_csv(output_sentence_file)
-
-    for i, k in original_df.iterrows():
-        if len(text_id_name)>0:
-            relevant_sents = sentence_df.loc[sentence_df.text_id==k[text_id_name]]
-        else:
-            relevant_sents = sentence_df.loc[sentence_df.text_id==i] #maybe str?
-
-        if len(relevant_sents) > 0:
-            final.append(np.mean(relevant_sents.anthroscore))
-        else:
-            final.append(float('nan'))
-
-    original_df['anthroscore'] = final
-    original_df.to_csv(output_file)
-
-
-    print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
+    #print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
     print('AnthroScores for each sentence saved in %s'%(output_sentence_file))
     print('AnthroScores for text sentence saved in %s'%(output_file))
 
