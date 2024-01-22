@@ -51,7 +51,7 @@ print("BERT model loaded on %s"%device)
 tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
 def get_prediction(sent):
-    terms = ['you', 'we', 'us', 'he', 'she', 'her', 'him', 'You', 'We', 'Us', 'He', 'She', 'Her', 'I','i', 'it', 'its', 'It', 'Its' ]
+    terms = ['he', 'she', 'her', 'him', 'He', 'She', 'Her', 'it', 'its', 'It', 'Its' ]
     target_inds = [tokenizer.get_vocab()[x] for x in terms]
     token_ids = tokenizer.encode(sent,return_tensors='pt').to(device)
     masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
@@ -81,7 +81,7 @@ def get_prediction(sent):
     return scores
 
 def get_anthroscores(sentence_filename):
-    terms = ['you', 'we', 'us', 'he', 'she', 'her', 'him', 'You', 'We', 'Us', 'He', 'She', 'Her', 'I','i', 'it', 'its', 'It', 'Its' ]
+    terms = [['he', 'she', 'her', 'him', 'He', 'She', 'Her', 'it', 'its', 'It', 'Its' ]
     df = pd.read_csv(sentence_filename)
     final =np.empty((len(terms),))
     for i,x in enumerate(df.masked_sentence):
@@ -92,8 +92,8 @@ def get_anthroscores(sentence_filename):
         newrow = get_prediction(x)
         final = np.vstack([final, newrow])
     
-    human_scores = np.sum(final[1:,:15],axis=1)
-    nonhuman_scores = np.sum(final[1:,15:],axis=1)
+    human_scores = np.sum(final[1:,:7],axis=1)
+    nonhuman_scores = np.sum(final[1:,7:],axis=1)
     df['anthroscore'] = np.log(human_scores) - np.log(nonhuman_scores)
     df.to_csv(sentence_filename)
 
@@ -151,7 +151,7 @@ def get_text_score(text,entities,output_filename=''):
         return np.nan
         
     # Get scores
-    terms = ['you', 'we', 'us', 'he', 'she', 'her', 'him', 'You', 'We', 'Us', 'He', 'She', 'Her', 'I','i', 'it', 'its', 'It', 'Its' ]
+    terms = ['he', 'she', 'her', 'him', 'He', 'She', 'Her',  'it', 'its', 'It', 'Its' ]
     final =np.empty((len(terms),))
     for i,x in enumerate(masked_sents):
         if i>0 and i%100 == 0:
@@ -160,8 +160,8 @@ def get_text_score(text,entities,output_filename=''):
             print("Calculating sentence %d"%i)
         newrow = get_prediction(x)
         final = np.vstack([final, newrow])
-    human_scores = np.sum(final[1:,:15],axis=1)
-    nonhuman_scores = np.sum(final[1:,15:],axis=1)
+    human_scores = np.sum(final[1:,:7],axis=1)
+    nonhuman_scores = np.sum(final[1:,7:],axis=1)
     final_scores = np.log(human_scores) - np.log(nonhuman_scores)
     df = pd.DataFrame({'sentence':masked_sents,'anthroscore':final_scores})
     if len(output_filename)>0:
@@ -249,7 +249,6 @@ def main():
 
         compute_average_scores(input_file,output_sentence_file,output_file,text_id_name)
 
-        #print('Average AnthroScore in %s: %.3f'%(input_file,np.mean(df['anthroscore'])))
         print('AnthroScores for each sentence saved in %s'%(output_sentence_file))
         print('AnthroScores for text sentence saved in %s'%(output_file))
 
