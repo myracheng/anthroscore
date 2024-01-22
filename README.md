@@ -1,6 +1,6 @@
 
 
-# About AnthroScore
+# AnthroScore
 This repository contains code to compute AnthroScore. AnthroScore is introduced in the following paper, which is accepted to EACL 2024:
 ## AnthroScore: A Computational Linguistic Measure of Anthropomorphism
 *Myra Cheng, Kristina Gligoric, Tiziano Piccardi, Dan Jurafsky* (Stanford University)
