@@ -81,7 +81,7 @@ def get_prediction(sent):
     return scores
 
 def get_anthroscores(sentence_filename):
-    terms = [['he', 'she', 'her', 'him', 'He', 'She', 'Her', 'it', 'its', 'It', 'Its' ]
+    terms = ['he', 'she', 'her', 'him', 'He', 'She', 'Her', 'it', 'its', 'It', 'Its' ]
     df = pd.read_csv(sentence_filename)
     final =np.empty((len(terms),))
     for i,x in enumerate(df.masked_sentence):
