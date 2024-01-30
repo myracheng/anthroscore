@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='anthroscore',
+    name='anthroscore-eacl',
     __version__ = "0.0.0",
 
 
