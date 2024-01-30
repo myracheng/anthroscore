@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: anthroscore
+Version: 0.0.0
+Home-page: https://github.com/myracheng/anthroscore
+Author: Myra Cheng
+Author-email: myra@cs.stanford.edu
+License: BSD 2-clause
+Classifier: Programming Language :: Python :: 3.11
+License-File: LICENSE
+Requires-Dist: regex
+Requires-Dist: spacy==3.7.2
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: transformers
+Requires-Dist: pandas
+Requires-Dist: torch
+Requires-Dist: en-core-web-sm@ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889

@@ -13,6 +13,9 @@ Anthropomorphism, or the attribution of human-like characteristics to non-human 
 `git clone https://github.com/myracheng/anthroscore.git`  
 `cd anthroscore`  
 `pip install .`  
+Install the spaCy model:
+`python -m spacy download en_core_web_sm`
+(The specific model used is https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889)
 # Example Usage
 To obtain AnthroScores for the terms "model" and "system" in 
 abstracts from examples/acl_50.csv (a subset of ACL Anthology papers)
