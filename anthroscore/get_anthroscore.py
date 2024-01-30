@@ -7,9 +7,7 @@ EXAMPLE USAGE:
 To obtain AnthroScore for the terms "model" and "system" in the text 
     "I love this model. I hate this system.":
 
-    python get_anthroscore.py --input_text "I love this model. I hate this system." \
-        --entities system model \
-        --output_sentence_file sentence_scores.csv
+    python get_anthroscore.py --input_text "I love this model. I hate this system." --entities system model --output_sentence_file sentence_scores.csv
 
 To obtain AnthroScores for the terms "model" and "system" in 
 abstracts from examples/acl_50.csv (a subset of ACL Anthology papers):
@@ -198,13 +196,14 @@ def main():
     parser = argparse.ArgumentParser(description="Script to compute AnthroScore for a given set of texts",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     group1 = parser.add_mutually_exclusive_group()
-    group1.add_argument("--input_text", help='Input text to compute AnthroScore on')
+    group1.add_argument("--input_text", type=str, help='Input text to compute AnthroScore on')
     group1.add_argument("--input_file", help="Input CSV or JSON file of text(s) to compute AnthroScore on")
     parser.add_argument("--text_column_name", help="Column of input CSV containing text(s) to compute AnthroScore on.")
 
     group2= parser.add_mutually_exclusive_group()
     group2.add_argument("--entities",nargs="+", type=str,help="Entities to compute AnthroScore for")
     group2.add_argument('--entity_filename',default='',help=".txt file of entities to compute AnthroScore for")
+    
     parser.add_argument("--output_file", default='',help="Location to store output of AnthroScores for every text, optional")
     parser.add_argument("--output_sentence_file", default='',help="Location to store output of parsed sentences with AnthroScores, optional")
     parser.add_argument("--text_id_name",type=str,default='',help="ID for each text, optional -- otherwise defaults to the index in the dataframe")
@@ -220,7 +219,7 @@ def main():
 
 
 
-    if len(args.input_text) > 0:
+    if args.input_text is not None:
         score = get_text_score(args.input_text, entities, args.output_sentence_file)
 
         print('Average AnthroScore in text: %.3f'%(score))
