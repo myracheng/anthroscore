@@ -24,3 +24,5 @@ abstracts from examples/acl_50.csv (a subset of ACL Anthology papers)
     python get_anthroscore.py --input_file example/acl_50.csv \
         --text_column_name abstract --entities system model \
         --output_file example/results.csv --text_id_name acl_id
+
+Please contact me if you have any questions or concerns! myra [at] cs [dot] stanford [dot] edu
