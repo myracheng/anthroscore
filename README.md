@@ -11,10 +11,10 @@ arXiv: https://arxiv.org/abs/2402.02056
 
 # Setup
 1. Download the repository, either
-- via pip: `pip install anthroscore-eacl` or
-- via Github: ```git clone https://github.com/myracheng/anthroscore.git;```
+- **via pip:** `pip install anthroscore-eacl` or
+- **via Github:** ```git clone https://github.com/myracheng/anthroscore.git;```
   ```cd anthroscore;``` ```pip install .``` 
-3. Install the spaCy model: `python -m spacy download en_core_web_sm`
+2. Install the spaCy model: `python -m spacy download en_core_web_sm`
 (The specific model used is https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889)
 
 # Example Usage
