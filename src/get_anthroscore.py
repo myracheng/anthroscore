@@ -115,13 +115,22 @@ def parse_sentences_from_file(input_filename, entities, text_column_name, id_col
             text_id = i
         if text.strip():
             doc = nlp(text)
+            found = False
             for _parsed_sentence in doc.sents:
                 for _noun_chunk in _parsed_sentence.noun_chunks:
                     for _pattern in pattern_list:
                         if re.findall(_pattern.lower(), _noun_chunk.text.lower()):
                                 _verb = _noun_chunk.root.head.lemma_.lower()
+                                found = True
                                 target = str(_parsed_sentence).replace(str(_noun_chunk),'<mask>')
                                 final.append((str(_parsed_sentence), target, text_id, _noun_chunk.root.dep,str(_verb),_pattern.strip('\\b'),_noun_chunk.text.lower()))
+            if not found:
+                for token in doc:
+                    for _pattern in pattern_list:
+                        if re.findall(_pattern.lower(), token.text.lower()):
+                            found = True
+                            target = str(_parsed_sentence).replace(str(token),'<mask>')
+                            final.append((str(_parsed_sentence), target, text_id, '','',_pattern.strip('\\b'),token.text.lower()))
     res = pd.DataFrame(final)
     res.columns =column_names
     res.to_csv(output_filename,index=False)
@@ -135,7 +144,6 @@ def get_text_score(text,entities,output_filename=''):
         doc = nlp(text)
         for _parsed_sentence in doc.sents:
             for _noun_chunk in _parsed_sentence.noun_chunks:
-                if _noun_chunk.root.dep_ == 'nsubj' or _noun_chunk.root.dep_ == 'dobj':
                     for _pattern in pattern_list:
                         if re.findall(_pattern.lower(), _noun_chunk.text.lower()):
                                 _verb = _noun_chunk.root.head.lemma_.lower()
